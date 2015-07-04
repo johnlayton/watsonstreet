@@ -1,0 +1,10 @@
+[package]
+
+name = "fibonacci"  
+version = "1.0.0"  
+authors = [ "john layton <johnstewartlayton@gmail.com>" ]  
+
+[lib]
+name = "watsonstreet"  
+crate-type = ["dylib"]  
+
