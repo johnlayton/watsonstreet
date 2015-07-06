@@ -6,7 +6,6 @@ var repl = require( 'repl' );
 var netcdf = require( './watsonstreet.js' );
 var imshow = require( 'ndarray-imshow' );
 
-/*
 var repl = repl.start( {
   prompt : " -> ",
   input  : process.stdin,
@@ -14,7 +13,6 @@ var repl = repl.start( {
 } );
 repl.context.netcdf = netcdf;
 repl.context.imshow = imshow;
-*/
 /*
 repl.context.t_sfc = new netcdf( {
   filename : "/Users/john/Temp/bom-weather/20141230_185400/IDV71000_VIC_T_SFC.nc"
@@ -44,25 +42,31 @@ var t_sfc = new netcdf( {
 } );
 */
 
-var wind_mag = new netcdf( {} ).open( "/Users/john/Temp/bom-weather/20141230_185400/IDV71000_VIC_T_SFC.nc" );
-var t_sfc = new netcdf( {} ).create( "/Users/john/Development/home/watsonstreet/new.nc" );
+var orig = new netcdf( {} );
+  orig.open( "/Users/john/Temp/bom-weather/20141230_185400/IDV71000_VIC_T_SFC.nc" );
+var copy = new netcdf( {} );
+  copy.create( "/Users/john/Development/home/watsonstreet/new.nc" );
 
-var attrs = wind_mag.get_attributes();
+var attrs = orig.get_attributes();
 for ( var i = 0, len = attrs.length; i < len; i++ ) {
-  t_sfc.add_attribute( -1, attrs[ i ] );
+  copy.add_attribute( netcdf.NC_GLOBAL, attrs[ i ] );
 }
 
-var dims = wind_mag.get_dimensions();
+var dims = orig.get_dimensions();
 for ( var i = 0, len = dims.length; i < len; i++ ) {
-  t_sfc.add_dimension( dims[ i ] );
+  copy.add_dimension( dims[ i ] );
 }
 
-var vars = wind_mag.get_variables();
+copy.enddef();
+
+var vars = orig.get_variables();
 for ( var i = 0, len = vars.length; i < len; i++ ) {
-  t_sfc.add_variable( vars[ i ] );
+  copy.add_variable( vars[ i ] );
 }
 
-t_sfc.close();
+copy.close();
+
+console.log( "Fin" );
 
 /*
 console.log( "++++++++++++++++++++++" );

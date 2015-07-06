@@ -12,6 +12,9 @@
   }
 }( this, function () {
 
+  var arr = require( 'ref-array' );
+  var dbg = require( 'debug' )( 'netcdf' );
+
   var ffi = require( 'ffi' );
   var ref = require( 'ref' );
   var lib = require( './lib/libnetcdf.js' );
@@ -19,8 +22,10 @@
 
   var cdf = lib.netcdf;
 
+  // Global Variable Id
   const NC_GLOBAL = -1;
 
+  // Types
   const NC_NAT = 0;
   const NC_BYTE = 1;
   const NC_CHAR = 2;
@@ -37,6 +42,7 @@
   const NC_STRING = 12;
   const NC_MAX_ATOMIC_TYPE = NC_STRING;
 
+  // Modes
   const NC_NOWRITE = 0x0000;
   const NC_WRITE = 0x0001;
   /* unused: 0x0002 */
@@ -56,12 +62,12 @@
   const NC_MPIPOSIX = 0x4000;
   const NC_PNETCDF = 0x8000;
 
-  var NetCDF = (function () {
+  //var NetCDF = (function () {
 
-    function NetCDF( options ) {
+    var NetCDF = function( options ) {
 
       function readCString( buf ) {
-        return ref.reinterpretUntilZeros( buf, 1 ).toString( 'utf8' )
+        return ref.reinterpretUntilZeros( buf, 1 ).toString( 'utf8' );
       }
 
       var ncid = ref.alloc( ref.types.int32 );
@@ -78,131 +84,73 @@
         return new NetCDF( options );
       }
 
-      /*
-       if ( options.filename ) {
-       cdf.nc_open( options.filename, 0, ncid );
-       if ( options.debug ) {
-       console.log( "-------------" );
-       console.log( "ncid = " + ncid.deref() );
-       console.log( "-------------" );
-       }
-
-       cdf.nc_inq( ncid.deref(), ndimsp, nvarsp, nattsp, unlimdimidp );
-       if ( options.debug ) {
-       console.log( "-------------" );
-       console.log( "ndimsp = " + ndimsp.deref() );
-       console.log( "nvarsp = " + nvarsp.deref() );
-       console.log( "nattsp = " + nattsp.deref() );
-       console.log( "unlimdimidp = " + unlimdimidp.deref() );
-       console.log( "-------------" );
-       }
-
-       cdf.nc_inq_format( ncid.deref(), format );
-       if ( options.debug ) {
-       console.log( "-------------" );
-       console.log( "format = " + format.deref() );
-       console.log( "-------------" );
-       }
-
-       for ( var i = 0; i < 13; i++ ) {
-       //var type_name = ref.alloc( ref.types.CString );
-       var type_name = new Buffer( 20 );
-       var type_length = ref.alloc( ref.types.int32 );
-       cdf.nc_inq_type( ncid.deref(), i, type_name, type_length );
-
-       if ( options.debug ) {
-       console.log( "-------------" );
-       console.log( "type_id = " + i );
-       console.log( "type_name = " + type_name.readCString() );
-       console.log( "type_length = " + type_length.deref() );
-       console.log( "-------------" );
-       }
-       }
-       }
-       else {
-
-       }
-       */
-
-      this.open = function ( file ) {
-        cdf.nc_open( file, NC_NOCLOBBER, ncid );
-        if ( options.debug ) {
-          console.log( "-------------" );
-          console.log( "ncid = " + ncid.deref() );
-          console.log( "-------------" );
-        }
-
-        cdf.nc_inq( ncid.deref(), ndimsp, nvarsp, nattsp, unlimdimidp );
-        if ( options.debug ) {
-          console.log( "-------------" );
-          console.log( "ndimsp = " + ndimsp.deref() );
-          console.log( "nvarsp = " + nvarsp.deref() );
-          console.log( "nattsp = " + nattsp.deref() );
-          console.log( "unlimdimidp = " + unlimdimidp.deref() );
-          console.log( "-------------" );
-        }
-
-        cdf.nc_inq_format( ncid.deref(), format );
-        if ( options.debug ) {
-          console.log( "-------------" );
-          console.log( "format = " + format.deref() );
-          console.log( "-------------" );
-        }
-
-        for ( var i = 0; i < 13; i++ ) {
-          //var type_name = ref.alloc( ref.types.CString );
+      var types = [];
+      this.get_type = function ( i ) {
+        if ( !types[i] ) {
           var type_name = new Buffer( 20 );
           var type_length = ref.alloc( ref.types.int32 );
-          cdf.nc_inq_type( ncid.deref(), i, type_name, type_length );
-
-          if ( options.debug ) {
-            console.log( "-------------" );
-            console.log( "type_id = " + i );
-            console.log( "type_name = " + type_name.readCString() );
-            console.log( "type_length = " + type_length.deref() );
-            console.log( "-------------" );
-          }
+          dbg( "nc_inq_type = " + cdf.nc_inq_type( ncid.deref(), i, type_name, type_length ) );
+          dbg( "type_id = " + i );
+          dbg( "type_name = " + type_name.readCString() );
+          dbg( "type_length = " + type_length.deref() );
+          types[i] = {
+            name : type_name.readCString(),
+            length : type_length.deref()
+          };
         }
-        return this;
+        return types[i];
+      };
+
+      this.open = function ( file ) {
+        dbg( "nc_open = " + cdf.nc_open( file, NC_NOCLOBBER, ncid ) );
+        dbg( "ncid = " + ncid.deref() );
+
+        dbg( "nc_inq = " + cdf.nc_inq( ncid.deref(), ndimsp, nvarsp, nattsp, unlimdimidp ) );
+        dbg( "ndimsp = " + ndimsp.deref() );
+        dbg( "nvarsp = " + nvarsp.deref() );
+        dbg( "nattsp = " + nattsp.deref() );
+        dbg( "unlimdimidp = " + unlimdimidp.deref() );
+
+        dbg( "nc_inq_format = " + cdf.nc_inq_format( ncid.deref(), format ) );
+        dbg( "format = " + format.deref() );
       };
 
       this.create = function ( file ) {
-        cdf.nc_create( file, NC_DISKLESS | NC_WRITE | NC_CLOBBER | NC_64BIT_OFFSET, ncid );
-        return this;
+        //NC_DISKLESS | NC_WRITE | NC_CLOBBER | NC_64BIT_OFFSET | NC_NETCDF4
+        dbg( "nc_create = " + cdf.nc_create( file, NC_CLOBBER | NC_NETCDF4, ncid ) );
+        dbg( "ncid = " + ncid.deref() );
+      };
+
+      this.enddef = function () {
+        dbg( "nc_enddef = " + cdf.nc_enddef( ncid.deref() ) );
       };
 
       this.close = function () {
-        cdf.nc_close( ncid.deref() );
-        return this;
+        dbg( "nc_close = " + cdf.nc_close( ncid.deref() ) );
       };
 
       this.get_attribute = function ( var_id, att_id ) {
-
         function toValue( typ, buffer ) {
           if ( NC_CHAR == typ ) {
             return buffer.readCString();
-          }
-          else if ( NC_INT == typ ) {
+          } else if ( NC_INT == typ ) {
             return buffer.readInt32LE( 0 );
-          }
-          else if ( NC_FLOAT == typ ) {
+          } else if ( NC_FLOAT == typ ) {
             return buffer.readFloatLE( 0 );
-          }
-          else if ( NC_STRING == typ ) {
+          } else if ( NC_STRING == typ ) {
             return buffer.readCString();
-          }
-          else {
+          } else {
             return "Fix me you lazy bum";
           }
         }
 
         var att_name = new Buffer( 100 );
-        cdf.nc_inq_attname( ncid.deref(), var_id, att_id, att_name );
+        dbg( "nc_inq_attname = " + cdf.nc_inq_attname( ncid.deref(), var_id, att_id, att_name ) );
         var att_type = ref.alloc( ref.types.int32 );
         var att_length = ref.alloc( ref.types.int32 );
-        cdf.nc_inq_att( ncid.deref(), var_id, readCString( att_name ), att_type, att_length );
+        dbg( "nc_inq_att = " + cdf.nc_inq_att( ncid.deref(), var_id, readCString( att_name ), att_type, att_length ) );
         var att_value = new Buffer( Math.max( att_length.deref(), 64 ) );
-        cdf.nc_get_att( ncid.deref(), var_id, readCString( att_name ), att_value );
+        dbg( "nc_get_att = " + cdf.nc_get_att( ncid.deref(), var_id, readCString( att_name ), att_value ) );
 
         return {
           id     : att_id,
@@ -213,32 +161,27 @@
         };
       };
 
-      this.add_attribute = function( var_id, att ) {
-        var att_name = ref.allocCString( att.name ).toString();
-        if ( NC_FLOAT == att.type ) {
-          var att_value = ref.alloc( ref.types.float, att.value );
-          cdf.nc_put_att_float(ncid.deref(), var_id, att_name, att.type, att.length, att_value );
-        }
-        else if ( NC_STRING == att.type ) {
-          var att_value = ref.allocCString( att.value ).toString();
-          cdf.nc_put_att_string(ncid.deref(), var_id, att_name, att.length, att_value );
-        }
-        else if ( NC_CHAR == att.type ) {
-          var att_value = ref.allocCString( att.value ).toString();
-          cdf.nc_put_att_text(ncid.deref(), var_id, att_name, att.length, att_value );
-        }
-        else if ( NC_INT == att.type ) {
-          var att_value = ref.alloc( ref.types.int32, att.value );
-          cdf.nc_put_att_int(ncid.deref(), var_id, att_name, att.type, att.length, att_value );
+      this.add_attribute = function ( var_id, attribute ) {
+        dbg( "Add attribute", attribute );
+
+        var att_name = ref.allocCString( attribute.name ).toString();
+        if ( NC_INT == attribute.type ) {
+          cdf.nc_put_att_int( ncid.deref(), var_id, att_name, attribute.type, attribute.length, ref.alloc( ref.types.int32, attribute.value ) );
+        } else if ( NC_FLOAT == attribute.type ) {
+          cdf.nc_put_att_float( ncid.deref(), var_id, att_name, attribute.type, attribute.length, ref.alloc( ref.types.float, attribute.value ) );
+        } else if ( NC_STRING == attribute.type ) {
+          cdf.nc_put_att_string( ncid.deref(), var_id, att_name, attribute.length, ref.allocCString( attribute.value ).toString() );
+        } else if ( NC_CHAR == attribute.type ) {
+          cdf.nc_put_att_text( ncid.deref(), var_id, att_name, attribute.length, ref.allocCString( attribute.value ).toString() );
         } else {
-          cdf.nc_put_att(ncid.deref(), var_id, att_name, att.type, att.length, att.value );
+          cdf.nc_put_att( ncid.deref(), var_id, att_name, attribute.type, attribute.length, attribute.value );
         }
       };
 
-      this.get_attributes = function () {
+      this.get_attributes = function ( var_id ) {
         var result = [];
         for ( var i = 0; i < nattsp.deref(); i++ ) {
-          result.push( this.get_attribute( NC_GLOBAL, i ) );
+          result.push( this.get_attribute( var_id || NC_GLOBAL, i ) );
         }
         return result;
       };
@@ -254,9 +197,11 @@
         };
       };
 
-      this.add_dimension = function( dim ) {
+      this.add_dimension = function ( dimension ) {
+        dbg( "Add dimension", dimension );
+
         var dim_id = ref.alloc( ref.types.int32 );
-        cdf.nc_def_dim( ncid.deref(), dim.name, dim.length, dim_id );
+        cdf.nc_def_dim( ncid.deref(), dimension.name, dimension.length, dim_id );
       };
 
       this.get_dimensions = function () {
@@ -275,6 +220,7 @@
         var var_nattsp = ref.alloc( ref.types.int32 );
 
         cdf.nc_inq_var( ncid.deref(), var_id, var_name, var_type, var_ndimsp, var_dimidsp, var_nattsp );
+
         var dimensions = [];
         for ( var dim_id = 0; dim_id < var_ndimsp.deref(); dim_id++ ) {
           dimensions.push( this.get_dimension( var_dimidsp.readInt32LE( 4 * dim_id ) ) );
@@ -285,9 +231,41 @@
           attributes.push( this.get_attribute( var_id, att_id ) );
         }
 
-        length = dimensions.reduce( function ( i, j ) {
-          return i * j.length;
+        var shape = dimensions.map( function ( i ) {
+          return i.length;
+        } );
+
+        var length = shape.reduce( function ( i, j ) {
+          return i * j;
         }, 1 );
+
+        var buffer = new Buffer( 4 * length );
+        cdf.nc_get_var( ncid.deref(), var_id, buffer );
+
+        function toNdArray( buffer, type, dimensions ) {
+          function toArrayBuffer( buffer ) {
+            var ab = new ArrayBuffer( buffer.length );
+            var view = new Uint8Array( ab );
+            for ( var i = 0; i < buffer.length; ++i ) {
+              view[i] = buffer[i];
+            }
+            return ab;
+          }
+          function toTypeArray( buffer, type ) {
+            if ( NC_BYTE == type ) {
+              return new Int8Array( buffer );
+            } else if ( NC_FLOAT == type ) {
+              return new Int32Array( buffer );
+            } else if ( NC_FLOAT == type ) {
+              return new Float32Array( buffer );
+            } else {
+              return new Int32Array();
+            }
+          }
+          return nda( toTypeArray( toArrayBuffer( buffer ), type ), dimensions );
+        }
+
+        var ndarray = toNdArray( buffer, var_type.deref(), shape );
 
         return {
           id         : var_id,
@@ -296,63 +274,34 @@
           dimensions : dimensions,
           attributes : attributes,
           length     : length,
-          buffer     : function ( ) {
-            var data = new Buffer( 4 * length );
-            cdf.nc_get_var( ncid.deref(), var_id, data );
-            return buffer;
-          },
-          ndarray    : function ( index ) {
-            var data = new Buffer( 4 * length );
-            cdf.nc_get_var( ncid.deref(), var_id, data );
-
-            function toNdArray( buffer, type, dimensions ) {
-
-              function toArrayBuffer( buffer ) {
-                var ab = new ArrayBuffer( buffer.length );
-                var view = new Uint8Array( ab );
-                for ( var i = 0; i < buffer.length; ++i ) {
-                  view[i] = buffer[i];
-                }
-                return ab;
-              }
-
-              function toTypeArray( buffer, type ) {
-                if ( NC_BYTE == type ) {
-                  return new Int8Array( buffer );
-                }
-                else if ( NC_FLOAT == type ) {
-                  return new Int32Array( buffer );
-                }
-                else if ( NC_FLOAT == type ) {
-                  return new Float32Array( buffer );
-                }
-                else {
-                  return new Int32Array();
-                }
-              }
-
-              return nda( toTypeArray( toArrayBuffer( buffer ), type ), dimensions );
-            }
-
-            return toNdArray( data, var_type.deref(), dimensions.map( function ( i ) {
-              return i.length
-            } ) )
+          buffer     : buffer,
+          ndarray    : function(){
+            return ndarray;
           }
         };
       };
 
-      this.add_variable = function( variable ) {
+      this.add_variable = function ( variable ) {
+
+        dbg( "Add variable", variable );
+
         var var_id = ref.alloc( ref.types.int32 );
-        var dim_ids = variable.dimensions.map( function ( i ) {
-          return i.id;
-        } );
-        var dimidsp = ref.alloc( ref.types.int32, dim_ids );
 
-        console.log( variable );
-        console.log( dim_ids );
-        console.log( dimidsp.deref() );
+        var var_dimidsp = new Buffer( 4 * variable.dimensions.length );
+        for ( var i = 0; i < variable.dimensions.length; i++ ) {
+          var_dimidsp.writeInt32LE( variable.dimensions[i].id, 4 * i );
+        }
 
-        console.log( cdf.nc_def_var( ncid.deref(), variable.name, variable.type, variable.dimensions.length, dimidsp, var_id ) );
+        dbg( ref.alloc( ref.types.int32, variable.dimensions.map( function(d) { return d.id; } ) ) );
+        dbg( var_dimidsp );
+
+        dbg( "def_var = ", cdf.nc_def_var( ncid.deref(), variable.name, variable.type, variable.dimensions.length, var_dimidsp, var_id ) );
+
+        for ( var i = 0; i < variable.attributes.length; i++ ) {
+          this.add_attribute( var_id.deref(), variable.attributes[i] )
+        }
+
+        dbg( "nc_put_var = ", cdf.nc_put_var( ncid.deref(), var_id.deref(), variable.buffer ) );
       };
 
       this.get_variables = function () {
@@ -362,14 +311,19 @@
         }
         return result;
       };
-    }
+    };
 
-    return NetCDF;
-  })();
+  //  return NetCDF;
+  //})();
 
-  return function ( options ) {
-    return new NetCDF( options );
-  };
+
+  //var worker =  function ( options ) {
+  //  return new NetCDF( options );
+  //};
+
+  NetCDF.NC_GLOBAL = NC_GLOBAL;
+
+  return NetCDF;
 
 } ));
 
