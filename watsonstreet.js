@@ -1,5 +1,3 @@
-"user strict";
-
 (function ( root, factory ) {
   if ( typeof exports === 'object' ) {
     module.exports = factory();
@@ -11,6 +9,8 @@
     root.returnExports = factory();
   }
 }( this, function () {
+
+  "use strict";
 
   var arr = require( 'ref-array' );
   var dbg = require( 'debug' )( 'netcdf' );
@@ -128,64 +128,77 @@
     };
 
     this.get_attribute = function ( var_id, att_id ) {
-      function toValue( typ, buffer ) {
-        if ( NC_CHAR == typ ) {
-          return buffer.readCString();
-        } else if ( NC_INT == typ ) {
-          return buffer.readInt32LE( 0 );
-        } else if ( NC_FLOAT == typ ) {
-          return buffer.readFloatLE( 0 );
-        } else if ( NC_STRING == typ ) {
-          return buffer.readCString();
-        } else {
-          return "Fix me you lazy bum";
+      if ( !att_id ) {
+        return this.get_attribute( NC_GLOBAL, var_id );
+      } else if ( 'string' == typeof att_id ) {
+        var _att_id = ref.alloc( ref.types.int32 );
+        cdf.nc_inq_attid( ncid.deref(), var_id, att_id, _att_id)
+        return this.get_attribute( var_id, _att_id.deref() );
+      } else {
+        function toValue( typ, buffer ) {
+          if ( NC_CHAR == typ ) {
+            return buffer.readCString();
+          } else if ( NC_INT == typ ) {
+            return buffer.readInt32LE( 0 );
+          } else if ( NC_FLOAT == typ ) {
+            return buffer.readFloatLE( 0 );
+          } else if ( NC_STRING == typ ) {
+            return buffer.readCString();
+          } else {
+            return "Fix me you lazy bum";
+          }
         }
+        var att_name = new Buffer( 100 );
+        dbg( "nc_inq_attname = " + cdf.nc_inq_attname( ncid.deref(), var_id, att_id, att_name ) );
+        var att_type = ref.alloc( ref.types.int32 );
+        var att_length = ref.alloc( ref.types.int32 );
+        dbg( "nc_inq_att = " + cdf.nc_inq_att( ncid.deref(), var_id, readCString( att_name ), att_type, att_length ) );
+        var att_value = new Buffer( Math.max( att_length.deref(), 64 ) );
+        dbg( "nc_get_att = " + cdf.nc_get_att( ncid.deref(), var_id, readCString( att_name ), att_value ) );
+        return {
+          id     : att_id,
+          name   : att_name.readCString(),
+          type   : att_type.deref(),
+          value  : toValue( att_type.deref(), att_value ),
+          length : att_length.deref()
+        };
       }
-
-      var att_name = new Buffer( 100 );
-      dbg( "nc_inq_attname = " + cdf.nc_inq_attname( ncid.deref(), var_id, att_id, att_name ) );
-      var att_type = ref.alloc( ref.types.int32 );
-      var att_length = ref.alloc( ref.types.int32 );
-      dbg( "nc_inq_att = " + cdf.nc_inq_att( ncid.deref(), var_id, readCString( att_name ), att_type, att_length ) );
-      var att_value = new Buffer( Math.max( att_length.deref(), 64 ) );
-      dbg( "nc_get_att = " + cdf.nc_get_att( ncid.deref(), var_id, readCString( att_name ), att_value ) );
-
-      return {
-        id     : att_id,
-        name   : att_name.readCString(),
-        type   : att_type.deref(),
-        value  : toValue( att_type.deref(), att_value ),
-        length : att_length.deref()
-      };
     };
 
     this.add_attribute = function ( var_id, attribute ) {
-      dbg( "Add attribute", attribute );
-
-      var att_name = ref.allocCString( attribute.name ).toString();
-      if ( NC_INT == attribute.type ) {
-        cdf.nc_put_att_int( ncid.deref(), var_id, att_name, attribute.type, attribute.length,
-                            ref.alloc( ref.types.int32, attribute.value ) );
-      } else if ( NC_FLOAT == attribute.type ) {
-        cdf.nc_put_att_float( ncid.deref(), var_id, att_name, attribute.type, attribute.length,
-                              ref.alloc( ref.types.float, attribute.value ) );
-      } else if ( NC_STRING == attribute.type ) {
-        cdf.nc_put_att_string( ncid.deref(), var_id, att_name, attribute.length,
-                               ref.allocCString( attribute.value ).toString() );
-      } else if ( NC_CHAR == attribute.type ) {
-        cdf.nc_put_att_text( ncid.deref(), var_id, att_name, attribute.length,
-                             ref.allocCString( attribute.value ).toString() );
+      if ( !attribute ) {
+        this.add_attribute( NC_GLOBAL, var_id );
       } else {
-        cdf.nc_put_att( ncid.deref(), var_id, att_name, attribute.type, attribute.length, attribute.value );
+        dbg( "Add attribute", attribute );
+        var att_name = ref.allocCString( attribute.name ).toString();
+        if ( NC_INT == attribute.type ) {
+          cdf.nc_put_att_int( ncid.deref(), var_id, att_name, attribute.type, attribute.length,
+                              ref.alloc( ref.types.int32, attribute.value ) );
+        } else if ( NC_FLOAT == attribute.type ) {
+          cdf.nc_put_att_float( ncid.deref(), var_id, att_name, attribute.type, attribute.length,
+                                ref.alloc( ref.types.float, attribute.value ) );
+        } else if ( NC_STRING == attribute.type ) {
+          cdf.nc_put_att_string( ncid.deref(), var_id, att_name, attribute.length,
+                                 ref.allocCString( attribute.value ).toString() );
+        } else if ( NC_CHAR == attribute.type ) {
+          cdf.nc_put_att_text( ncid.deref(), var_id, att_name, attribute.length,
+                               ref.allocCString( attribute.value ).toString() );
+        } else {
+          cdf.nc_put_att( ncid.deref(), var_id, att_name, attribute.type, attribute.length, attribute.value );
+        }
       }
     };
 
     this.get_attributes = function ( var_id ) {
-      var result = [];
-      for ( var i = 0; i < nattsp.deref(); i++ ) {
-        result.push( this.get_attribute( var_id || NC_GLOBAL, i ) );
+      if ( !var_id ) {
+        this.get_attributes( NC_GLOBAL );
+      } else {
+        var result = [];
+        for ( var i = 0; i < nattsp.deref(); i++ ) {
+          result.push( this.get_attribute( var_id || NC_GLOBAL, i ) );
+        }
+        return result;
       }
-      return result;
     };
 
     this.get_dimension = function ( dim_id ) {
